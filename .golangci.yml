@@ -1,4 +1,14 @@
 linters-settings:
+  depguard:
+    list-type: blacklist
+    packages:
+      # logging is allowed only by log.Logger
+      # zap is allowed to use only in log package
+      - go.uber.org/zap
+      - log
+    packages-with-error-message:
+      - go.uber.org/zap: "logging is allowed only by filebrowser/log"
+      - log: "please use filebrowser/log"
   dupl:
     threshold: 100
   exhaustive:
@@ -35,6 +45,17 @@ linters-settings:
         checks: argument,case,condition,return
   govet:
     check-shadowing: true
+    settings:
+      printf:
+        funcs:
+          - (github.com/filebrowser/filebrowser/v3/log.Logger).Debugf
+          - (github.com/filebrowser/filebrowser/v3/log.Logger).Infof
+          - (github.com/filebrowser/filebrowser/v3/log.Logger).Warnf
+          - (github.com/filebrowser/filebrowser/v3/log.Logger).Errorf
+          - (github.com/filebrowser/filebrowser/v3/log.Logger).Criticalf
+          - (github.com/filebrowser/filebrowser/v3/log.Logger).Fatalf
+          - (github.com/pkg/errors).Wrapf
+          - (github.com/pkg/errors).Errorf
   lll:
     line-length: 140
   maligned:
@@ -108,6 +129,9 @@ issues:
     - path: cmd/.*.go
       linters:
         - gochecknoinits
+    - path: log/.*.go
+      linters:
+        - gochecknoinits
     - path: .*_test.go
       linters:
         - lll
@@ -125,8 +149,3 @@ run:
     - frontend/
   skip-files:
     - http/rice-box.go
-
-# golangci.com configuration
-# https://github.com/golangci/golangci/wiki/Configuration
-service:
-  golangci-lint-version: 1.27.x # use the fixed version to not introduce new linters unexpectedly

@@ -32,9 +32,9 @@ export async function validateLogin () {
 }
 
 export async function login (username, password, recaptcha) {
-  const data = { username, password, recaptcha }
+  const data = { "user": username, "passwd":password, "recaptcha": recaptcha }
 
-  const res = await fetch(`${baseURL}/api/login`, {
+  const res = await fetch(`${baseURL}/auth/local/login`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'

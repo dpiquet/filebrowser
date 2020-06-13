@@ -1,40 +1,30 @@
-module github.com/filebrowser/filebrowser/v2
-
-require (
-	github.com/DataDog/zstd v1.4.0 // indirect
-	github.com/GeertJohan/go.rice v1.0.0
-	github.com/Sereal/Sereal v0.0.0-20190430203904-6faf9605eb56 // indirect
-	github.com/asdine/storm v2.1.2+incompatible
-	github.com/caddyserver/caddy v1.0.3
-	github.com/daaku/go.zipexe v1.0.1 // indirect
-	github.com/dgrijalva/jwt-go v3.2.0+incompatible
-	github.com/dsnet/compress v0.0.1 // indirect
-	github.com/golang/snappy v0.0.1 // indirect
-	github.com/gorilla/mux v1.7.3
-	github.com/gorilla/websocket v1.4.1
-	github.com/hacdias/fileutils v0.0.0-20181202104838-227b317161a1
-	github.com/maruel/natural v0.0.0-20180416170133-dbcb3e2e8cf1
-	github.com/mholt/archiver v3.1.1+incompatible
-	github.com/mitchellh/go-homedir v1.1.0
-	github.com/nwaples/rardecode v1.0.0 // indirect
-	github.com/pelletier/go-toml v1.6.0
-	github.com/pierrec/lz4 v0.0.0-20190131084431-473cd7ce01a1 // indirect
-	github.com/spf13/afero v1.2.2
-	github.com/spf13/cobra v0.0.5
-	github.com/spf13/jwalterweatherman v1.1.0 // indirect
-	github.com/spf13/pflag v1.0.5
-	github.com/spf13/viper v1.6.1
-	github.com/tomasen/realip v0.0.0-20180522021738-f0c99a92ddce
-	github.com/vmihailenco/msgpack v4.0.4+incompatible // indirect
-	github.com/xi2/xz v0.0.0-20171230120015-48954b6210f8 // indirect
-	go.etcd.io/bbolt v1.3.3
-	golang.org/x/crypto v0.0.0-20200510223506-06a226fb4e37
-	golang.org/x/net v0.0.0-20200528225125-3c3fba18258b // indirect
-	golang.org/x/sys v0.0.0-20200523222454-059865788121 // indirect
-	golang.org/x/text v0.3.2 // indirect
-	google.golang.org/appengine v1.5.0 // indirect
-	gopkg.in/natefinch/lumberjack.v2 v2.0.0
-	gopkg.in/yaml.v2 v2.2.7
-)
+module github.com/filebrowser/filebrowser/v3
 
 go 1.14
+
+require (
+	github.com/DataDog/zstd v1.4.5 // indirect
+	github.com/Sereal/Sereal v0.0.0-20200611165018-70572ef94023 // indirect
+	github.com/asdine/storm v2.1.2+incompatible
+	github.com/didip/tollbooth/v6 v6.0.1
+	github.com/didip/tollbooth_chi v0.0.0-20200524181329-8b84cd7183d9
+	github.com/go-chi/chi v4.1.2+incompatible
+	github.com/go-chi/cors v1.1.1
+	github.com/go-chi/render v1.0.1
+	github.com/go-pkgz/auth v0.11.0
+	github.com/go-pkgz/lcw v0.7.1
+	github.com/go-pkgz/rest v1.5.0
+	github.com/golang/mock v1.4.3
+	github.com/golang/protobuf v1.4.2 // indirect
+	github.com/markbates/pkger v0.17.0
+	github.com/pkg/errors v0.9.1
+	github.com/stretchr/testify v1.6.1
+	github.com/umputun/go-flags v1.5.1
+	github.com/vmihailenco/msgpack v4.0.4+incompatible // indirect
+	go.etcd.io/bbolt v1.3.4
+	go.uber.org/zap v1.15.0
+	golang.org/x/crypto v0.0.0-20190530122614-20be4c3c3ed5
+	google.golang.org/appengine v1.6.6 // indirect
+)
+
+replace github.com/go-pkgz/auth v0.11.0 => github.com/o1egl/auth v0.11.1-0.20200627171302-16caebf3ffdd
