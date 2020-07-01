@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"context"
-	"fmt"
 	"net/url"
 	"os"
 	"os/signal"
@@ -10,6 +9,14 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/filebrowser/filebrowser/v3/store/service"
+
+	"github.com/filebrowser/filebrowser/v3/hash"
+
+	"github.com/filebrowser/filebrowser/v3/store"
+
+	"github.com/filebrowser/filebrowser/v3/store/engine"
 
 	"github.com/go-pkgz/auth"
 	"github.com/go-pkgz/auth/avatar"
@@ -44,7 +51,7 @@ type ServerCommand struct {
 type StoreGroup struct {
 	Type string `long:"type" env:"TYPE" description:"type of storage" choice:"bolt" default:"bolt"`
 	Bolt struct {
-		Path    string        `long:"path" env:"PATH" default:".var/" description:"parent dir for bolt files"`
+		File    string        `long:"file" env:"FILE" default:"./var/filebrowser.db" description:"bolt file location"`
 		Timeout time.Duration `long:"timeout" env:"TIMEOUT" default:"30s" description:"bolt timeout"`
 	} `group:"bolt" namespace:"bolt" env-namespace:"BOLT"`
 }
@@ -123,7 +130,7 @@ type serverApp struct {
 
 // Execute runs file browser server
 func (s *ServerCommand) Execute(_ []string) error {
-	resetEnv("AUTH_ADMIN_USERNAME", "AUTH_ADMIN_PASSWORD")
+	resetEnv("SECRET", "AUTH_ADMIN_USERNAME", "AUTH_ADMIN_PASSWORD")
 
 	ctx, cancel := context.WithCancel(context.Background())
 	go func() { // catch signal and invoke graceful termination
@@ -155,12 +162,27 @@ func (s *ServerCommand) newServerApp() (*serverApp, error) {
 		return nil, errors.Wrap(err, "failed to make cache")
 	}
 
+	dataStore, err := s.makeDataStore()
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to initiate data store")
+	}
+
+	dataService := &service.DataStore{
+		Engine: dataStore,
+	}
+
+	if err := s.createAdminUser(dataStore); err != nil {
+		return nil, errors.Wrap(err, "failed to create admin user")
+	}
+
 	avatarStore, err := s.makeAvatarStore()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to make avatar store")
 	}
+
 	authRefreshCache := newAuthRefreshCache()
-	authenticator, err := s.makeAuthenticator(avatarStore, authRefreshCache)
+	localAuthProvider := newLocalAuthProvider(dataService)
+	authenticator, err := s.makeAuthenticator(dataService, avatarStore, authRefreshCache, localAuthProvider)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to make authenticator")
 	}
@@ -172,6 +194,7 @@ func (s *ServerCommand) newServerApp() (*serverApp, error) {
 
 	apiServer := &api.Server{
 		Authenticator:   authenticator,
+		Store:           dataStore,
 		Cache:           loadingCache,
 		Host:            s.Host,
 		Port:            s.Port,
@@ -189,7 +212,12 @@ func (s *ServerCommand) newServerApp() (*serverApp, error) {
 	}, nil
 }
 
-func (s *ServerCommand) makeAuthenticator(avatarStore avatar.Store, authRefreshCache *authRefreshCache) (*auth.Service, error) { //nolint:interfacer,lll
+func (s *ServerCommand) makeAuthenticator(
+	dataStore *service.DataStore,
+	avatarStore avatar.Store,
+	authRefreshCache *authRefreshCache,
+	localProvider provider.CredChecker,
+) (*auth.Service, error) { //nolint:interfacer
 	authenticator := auth.NewService(auth.Opts{
 		URL:            strings.TrimSuffix(s.ServerURL, "/"),
 		Issuer:         "filebrowser",
@@ -198,7 +226,6 @@ func (s *ServerCommand) makeAuthenticator(avatarStore avatar.Store, authRefreshC
 		SecureCookies:  strings.HasPrefix(s.ServerURL, "https://"),
 		SecretReader: token.SecretFunc(func(aud string) (string, error) {
 			if s.SharedSecret == "" {
-				log.Infof("shared secret: %s", s.SharedSecret)
 				return "", errors.New("shared secret is not provided")
 			}
 			return s.SharedSecret, nil
@@ -207,32 +234,36 @@ func (s *ServerCommand) makeAuthenticator(avatarStore avatar.Store, authRefreshC
 			if c.User == nil {
 				return c
 			}
-			//nolint:gocritic
-			//c.User.SetAdmin(ds.IsAdmin(c.User.ID))
+			c.User.SetAdmin(dataStore.IsAdmin(context.TODO(), c.User.ID))
+			c.User.SetBoolAttr("perm_execute", false)
+			c.User.SetBoolAttr("perm_create", false)
+			c.User.SetBoolAttr("perm_rename", false)
+			c.User.SetBoolAttr("perm_modify", false)
+			c.User.SetBoolAttr("perm_delete", false)
+			c.User.SetBoolAttr("perm_share", false)
+			c.User.SetBoolAttr("perm_download", false)
 			c.User.SetBoolAttr("blocked", false)
 			if strings.HasPrefix(c.User.ID, "anonymous_") {
 				c.User.SetBoolAttr("anonymous", true)
 			}
-			fmt.Println("ClaimsUpd")
 			return c
 		}),
 		AdminPasswd: s.AdminPasswd,
 		Validator: token.ValidatorFunc(func(token string, claims token.Claims) bool { // check on each auth call (in middleware)
-			fmt.Println("Validator")
 			if claims.User == nil {
 				return false
 			}
 			return !claims.User.BoolAttr("blocked")
 		}),
 		AvatarResizeLimit: s.Avatar.RszLmt,
-		AvatarRoutePath:   "/api/v1/avatar",
+		AvatarRoutePath:   path.Join(s.getServerBasePath(), "/api/v1/avatar"),
 		AvatarStore:       avatarStore,
 		Logger:            log.NewLogrAdapter(log.DefaultLogger),
 		RefreshCache:      authRefreshCache,
 		UseGravatar:       true,
 	})
 
-	if err := s.addAuthProviders(authenticator); err != nil {
+	if err := s.addAuthProviders(authenticator, localProvider); err != nil {
 		return nil, err
 	}
 
@@ -240,16 +271,11 @@ func (s *ServerCommand) makeAuthenticator(avatarStore avatar.Store, authRefreshC
 }
 
 //nolint:gocyclo,unparam
-func (s *ServerCommand) addAuthProviders(authenticator *auth.Service) error {
+func (s *ServerCommand) addAuthProviders(authenticator *auth.Service, localProvider provider.CredChecker) error {
 	providers := 0
 
 	providers++
-	authenticator.AddDirectProvider("local", provider.CredCheckerFunc(func(user, password string) (ok bool, err error) {
-		if user != s.Auth.Admin.Username || password != s.Auth.Admin.Password {
-			return false, errors.New("incorrect user credentials")
-		}
-		return true, nil
-	}))
+	authenticator.AddDirectProvider("local", localProvider)
 
 	if s.Auth.Google.CID != "" && s.Auth.Google.CSEC != "" {
 		authenticator.AddProvider("google", s.Auth.Google.CID, s.Auth.Google.CSEC)
@@ -293,6 +319,37 @@ func (s *ServerCommand) addAuthProviders(authenticator *auth.Service) error {
 	}
 
 	return nil
+}
+
+func newLocalAuthProvider(dataStore *service.DataStore) provider.CredChecker {
+	return provider.CredCheckerFunc(func(username, password string) (ok bool, err error) {
+		user, err := dataStore.FindUserByUsername(context.TODO(), username)
+		if errors.Is(err, store.ErrNotFound) {
+			return false, errors.New("user not found")
+		}
+		if err != nil {
+			return false, err
+		}
+
+		if !hash.CheckPassword(password, user.Password) {
+			return false, errors.New("incorrect user credentials")
+		}
+		return true, nil
+	})
+}
+
+func (s *ServerCommand) makeDataStore() (result engine.Interface, err error) {
+	log.Infof("make data store, type=%s", s.Store.Type)
+	switch s.Store.Type {
+	case "bolt":
+		if err = makeDirs(path.Dir(s.Store.Bolt.File)); err != nil {
+			return nil, errors.Wrap(err, "failed to create bolt store")
+		}
+		result, err = engine.NewBoltDB(context.Background(), s.Store.Bolt.File, &bolt.Options{Timeout: s.Store.Bolt.Timeout})
+	default:
+		return nil, errors.Errorf("unsupported store type %s", s.Store.Type)
+	}
+	return result, errors.Wrap(err, "can't initialize data store")
 }
 
 func (s *ServerCommand) makeAvatarStore() (avatar.Store, error) {
@@ -359,6 +416,29 @@ func (s *ServerCommand) makeSSLConfig() (config api.SSLConfig, err error) {
 	return config, err
 }
 
+func (s *ServerCommand) createAdminUser(storage engine.Interface) error {
+	pwdHash, err := hash.Password(s.Auth.Admin.Password)
+	if err != nil {
+		return err
+	}
+	admin := &store.User{
+		ID:           "admin",
+		Name:         "Admin",
+		Picture:      "",
+		Provider:     "",
+		Username:     s.Auth.Admin.Username,
+		Password:     pwdHash,
+		Scope:        ".",
+		Locale:       "",
+		Rules:        nil,
+		Commands:     nil,
+		LockPassword: false,
+		Admin:        true,
+		Blocked:      false,
+	}
+	return storage.SaveUser(context.Background(), admin)
+}
+
 // Run all application objects
 func (a *serverApp) run(ctx context.Context) error {
 	go func() {
@@ -377,6 +457,16 @@ func (a *serverApp) run(ctx context.Context) error {
 // Wait for application completion (termination)
 func (a *serverApp) Wait() {
 	<-a.terminated
+}
+
+// getServerBasePath returns base path for the server.
+// For example for serverURL https://filebrowser.org/base/path it should return /base/path
+func (s *ServerCommand) getServerBasePath() string {
+	u, err := url.Parse(s.ServerURL)
+	if err != nil {
+		return "/"
+	}
+	return u.Path
 }
 
 // authRefreshCache used by authenticator to minimize repeatable token refreshes

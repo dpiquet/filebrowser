@@ -21,7 +21,7 @@
     </p>
 
     <p v-if="!isDefault">
-      <input type="checkbox" :disabled="user.perm.admin" v-model="user.lockPassword"> {{ $t('settings.lockPassword') }}
+      <input type="checkbox" :disabled="user.attrs.perm_admin" v-model="user.lockPassword"> {{ $t('settings.lockPassword') }}
     </p>
 
     <permissions :perm.sync="user.perm" />
@@ -56,8 +56,8 @@ export default {
     }
   },
   watch: {
-    'user.perm.admin': function () {
-      if (!this.user.perm.admin) return
+    'user.attrs.perm_admin': function () {
+      if (!this.user.attrs.perm_admin) return
       this.user.lockPassword = false
     }
   }

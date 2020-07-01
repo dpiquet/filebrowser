@@ -174,7 +174,7 @@ export default {
         if (this.isEditor ||
           !this.isFiles ||
           this.loading ||
-          !this.user.perm.delete ||
+          !this.user.attrs.perm_delete ||
           (this.isListing && this.selectedCount === 0) ||
           this.$store.state.show != null) return
 
@@ -192,7 +192,7 @@ export default {
         if (this.isEditor ||
           !this.isFiles ||
           this.loading ||
-          !this.user.perm.rename ||
+          !this.user.attrs.perm_rename ||
           (this.isListing && this.selectedCount === 0) ||
           (this.isListing && this.selectedCount > 1)) return
 

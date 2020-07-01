@@ -1,24 +1,11 @@
 import store from '@/store'
 import router from '@/router'
-import { Base64 } from 'js-base64'
 import { baseURL } from '@/utils/constants'
 
-export function parseToken (token) {
-  const parts = token.split('.')
-
-  if (parts.length !== 3) {
-    throw new Error('token malformed')
-  }
-
-  const data = JSON.parse(Base64.decode(parts[1]))
-
-  if (Math.round(new Date().getTime() / 1000) > data.exp) {
-    throw new Error('token expired')
-  }
-
-  localStorage.setItem('jwt', token)
-  store.commit('setJWT', token)
-  store.commit('setUser', data.user)
+export function parseUserData (plainData) {
+  const userData = JSON.parse(plainData)
+  localStorage.setItem('user_data', userData)
+  store.commit('setUser', userData)
 }
 
 export async function validateLogin () {
@@ -45,7 +32,7 @@ export async function login (username, password, recaptcha) {
   const body = await res.text()
 
   if (res.status === 200) {
-    parseToken(body)
+    parseUserData(body)
   } else {
     throw new Error(body)
   }
@@ -62,7 +49,7 @@ export async function renew (jwt) {
   const body = await res.text()
 
   if (res.status === 200) {
-    parseToken(body)
+    //parseToken(body)
   } else {
     throw new Error(body)
   }

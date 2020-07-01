@@ -7,7 +7,7 @@
     <sidebar></sidebar>
     <main>
       <router-view></router-view>
-      <shell v-if="isLogged && user.perm.execute" />
+      <shell v-if="isLogged && user.attrs.perm_execute" />
     </main>
     <prompts></prompts>
   </div>

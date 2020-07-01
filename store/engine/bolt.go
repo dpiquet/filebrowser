@@ -3,7 +3,9 @@ package engine
 import (
 	"context"
 
-	"github.com/asdine/storm"
+	"github.com/asdine/storm/v3/q"
+
+	"github.com/asdine/storm/v3"
 	"github.com/pkg/errors"
 	bolt "go.etcd.io/bbolt"
 
@@ -20,9 +22,9 @@ type BoltDB struct {
 var _ Interface = &BoltDB{}
 
 // NewBoltDB makes persistent boltdb-based store. For each site new boltdb file created
-func NewBoltDB(ctx context.Context, fPath string, options *bolt.Options) (*BoltDB, error) {
+func NewBoltDB(ctx context.Context, fileName string, options *bolt.Options) (*BoltDB, error) {
 	log.WithContext(ctx).Infof("bolt store: options %+v", *options)
-	db, err := storm.Open(fPath, storm.BoltOptions(0600, options)) //nolint:gomnd
+	db, err := storm.Open(fileName, storm.BoltOptions(0600, options)) //nolint:gomnd
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to open bolt db")
 	}
@@ -52,8 +54,26 @@ func (b *BoltDB) SaveUser(ctx context.Context, user *store.User) error {
 	return nil
 }
 
+func (b *BoltDB) FindUsers(ctx context.Context, request FindUserRequest) ([]*store.User, error) {
+	var matchers []q.Matcher
+	if request.ID != "" {
+		matchers = append(matchers, q.Eq("ID", request.ID))
+	}
+	if request.Username != "" {
+		matchers = append(matchers, q.Eq("Username", request.Username))
+	}
+	var users []*store.User
+	if err := b.db.Select(matchers...).Find(&users); err != nil {
+		return nil, errors.Wrap(err, "failed execute user find query")
+	}
+	return users, nil
+}
+
 func (b *BoltDB) DeleteUser(ctx context.Context, userID string) error {
-	panic("implement me")
+	if err := b.db.Delete("User", userID); err != nil {
+		return errors.Wrapf(err, "can't delete user with id %d", userID)
+	}
+	return nil
 }
 
 func (b *BoltDB) withTx(writable bool, fn func(tx storm.Node) error) error {

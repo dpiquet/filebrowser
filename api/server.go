@@ -38,6 +38,7 @@ const (
 
 type Server struct {
 	Authenticator   *auth.Service
+	Store           Store
 	Cache           LoadingCache
 	Host            string
 	Port            int
@@ -50,6 +51,11 @@ type Server struct {
 	httpsServer *http.Server
 	httpServer  *http.Server
 	lock        sync.Mutex
+}
+
+type Store interface {
+	protectedStore
+	adminStore
 }
 
 // LoadingCache defines interface for caching
@@ -165,13 +171,13 @@ func (s *Server) routes() chi.Router {
 	})
 	router.Use(corsMiddleware.Handler)
 
-	openHandlers, _, _ := s.makeHandlerGroups()
+	publicHandlers, _, _ := s.makeHandlerGroups()
 
-	router.NotFound(openHandlers.indexHandler)
+	router.NotFound(publicHandlers.indexHandler)
 	router.Group(func(r chi.Router) {
 		r.Use(middleware.Timeout(OpenRoutesTimeout))
 		r.Use(tollbooth_chi.LimitHandler(tollbooth.NewLimiter(StaticRouterLimiter, nil)))
-		r.Get("/static/*", openHandlers.staticHandler)
+		r.Get("/static/*", publicHandlers.staticHandler)
 	})
 
 	authHandler, avatarHandler := s.Authenticator.Handlers()
@@ -210,12 +216,12 @@ func (s *Server) routes() chi.Router {
 	return router
 }
 
-func (s *Server) makeHandlerGroups() (*openHandlers, *userHandlers, *adminHandlers) {
-	openHandlers := &openHandlers{
+func (s *Server) makeHandlerGroups() (*openHandlers, *protectedHandlers, *adminHandlers) {
+	publicHandlers := &openHandlers{
 		BasePath: s.getServerBasePath(),
 		Revision: s.Revision,
 	}
-	return openHandlers, &userHandlers{}, &adminHandlers{}
+	return publicHandlers, &protectedHandlers{}, &adminHandlers{}
 }
 
 // getServerBasePath returns base path for the server.

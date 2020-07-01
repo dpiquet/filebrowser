@@ -57,7 +57,7 @@ export default {
       return 'insert_drive_file'
     },
     isDraggable () {
-      return this.user.perm.rename
+      return this.user.attrs.perm_rename
     },
     canDrop () {
       if (!this.isDir) return false

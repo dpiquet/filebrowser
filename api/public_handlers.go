@@ -30,7 +30,9 @@ func (h *openHandlers) indexHandler(w http.ResponseWriter, r *http.Request) {
 		SendErrorJSON(w, r, http.StatusInternalServerError, err, "failed to read index.html file", ErrCodeInternal)
 		return
 	}
-	index := template.Must(template.New("index").Delims("[{[", "]}]").Parse(string(b)))
+	tpl := template.Must(template.New("tpl").Delims("[{[", "]}]").Parse(string(b)))
+
+	w.Header().Add("Content-Type", "text/html")
 
 	data := map[string]interface{}{
 		"Name":            "File Browser",
@@ -54,8 +56,7 @@ func (h *openHandlers) indexHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data["Json"] = string(jsonData)
-
-	if err := index.Execute(w, data); err != nil {
+	if err := tpl.Execute(w, data); err != nil {
 		SendErrorJSON(w, r, http.StatusInternalServerError, err, "failed to render template", ErrCodeInternal)
 		return
 	}
@@ -63,8 +64,35 @@ func (h *openHandlers) indexHandler(w http.ResponseWriter, r *http.Request) {
 
 // staticHandler returns static assets
 func (h *openHandlers) staticHandler(w http.ResponseWriter, r *http.Request) {
-	rctx := chi.RouteContext(r.Context())
-	pathPrefix := strings.TrimSuffix(rctx.RoutePattern(), "/*")
-	fs := http.StripPrefix(pathPrefix, http.FileServer(pkger.Dir("/frontend/dist")))
-	fs.ServeHTTP(w, r)
+	rCtx := chi.RouteContext(r.Context())
+	pathPrefix := strings.TrimSuffix(rCtx.RoutePattern(), "/*")
+
+	if !strings.HasSuffix(r.URL.Path, ".js") {
+		fs := http.StripPrefix(pathPrefix, http.FileServer(pkger.Dir("/frontend/dist")))
+		fs.ServeHTTP(w, r)
+		return
+	}
+
+	file, err := pkger.Open(path.Join("/frontend/dist/", strings.TrimPrefix(r.URL.Path, pathPrefix)))
+	if err != nil {
+		SendErrorJSON(w, r, http.StatusInternalServerError, err, "index.html file read error", ErrCodeInternal)
+		return
+	}
+	b, err := ioutil.ReadAll(file)
+	if err != nil {
+		SendErrorJSON(w, r, http.StatusInternalServerError, err, "failed to read index.html file", ErrCodeInternal)
+		return
+	}
+
+	w.Header().Add("Content-Type", "text/javascript")
+
+	data := map[string]interface{}{
+		"StaticURL": path.Join(h.BasePath, "/static"),
+	}
+	tpl := template.Must(template.New("tpl").Delims("[{[", "]}]").Parse(string(b)))
+	if err := tpl.Execute(w, data); err != nil {
+		SendErrorJSON(w, r, http.StatusInternalServerError, err, "failed to render template", ErrCodeInternal)
+		return
+	}
+
 }

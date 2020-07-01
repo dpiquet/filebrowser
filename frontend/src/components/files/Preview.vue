@@ -5,9 +5,9 @@
         <i class="material-icons">close</i>
       </button>
 
-      <rename-button v-if="user.perm.rename"></rename-button>
-      <delete-button v-if="user.perm.delete"></delete-button>
-      <download-button v-if="user.perm.download"></download-button>
+      <rename-button v-if="user.attrs.perm_rename"></rename-button>
+      <delete-button v-if="user.attrs.perm_delete"></delete-button>
+      <download-button v-if="user.attrs.perm_download"></download-button>
       <info-button></info-button>
     </div>
 

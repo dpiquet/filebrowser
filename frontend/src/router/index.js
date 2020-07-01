@@ -137,7 +137,7 @@ router.beforeEach((to, from, next) => {
     }
 
     if (to.matched.some(record => record.meta.requiresAdmin)) {
-      if (!store.state.user.perm.admin) {
+      if (!store.state.user.attrs.perm_admin) {
         next({ path: '/403' })
         return
       }

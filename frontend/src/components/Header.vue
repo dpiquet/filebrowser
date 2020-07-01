@@ -41,7 +41,7 @@
             <delete-button v-show="showDeleteButton"></delete-button>
           </div>
 
-          <shell-button v-show="user.perm.execute" />
+          <shell-button v-show="user.attrs.perm_execute" />
           <switch-button v-show="isListing"></switch-button>
           <download-button v-show="showDownloadButton"></download-button>
           <upload-button v-show="showUpload"></upload-button>
@@ -127,38 +127,38 @@ export default {
       return this.width <= 736
     },
     showUpload () {
-      return this.isListing && this.user.perm.create
+      return this.isListing && this.user.attrs.perm_create
     },
     showSaveButton () {
-      return this.isEditor && this.user.perm.modify
+      return this.isEditor && this.user.attrs.perm_modify
     },
     showDownloadButton () {
-      return this.isFiles && this.user.perm.download
+      return this.isFiles && this.user.attrs.perm_download
     },
     showDeleteButton () {
       return this.isFiles && (this.isListing
-        ? (this.selectedCount !== 0 && this.user.perm.delete)
-        : this.user.perm.delete)
+        ? (this.selectedCount !== 0 && this.user.attrs.perm_delete)
+        : this.user.attrs.perm_delete)
     },
     showRenameButton () {
       return this.isFiles && (this.isListing
-        ? (this.selectedCount === 1 && this.user.perm.rename)
-        : this.user.perm.rename)
+        ? (this.selectedCount === 1 && this.user.attrs.perm_rename)
+        : this.user.attrs.perm_rename)
     },
     showShareButton () {
       return this.isFiles && (this.isListing
-        ? (this.selectedCount === 1 && this.user.perm.share)
-        : this.user.perm.share)
+        ? (this.selectedCount === 1 && this.user.attrs.perm_share)
+        : this.user.attrs.perm_share)
     },
     showMoveButton () {
       return this.isFiles && (this.isListing
-        ? (this.selectedCount > 0 && this.user.perm.rename)
-        : this.user.perm.rename)
+        ? (this.selectedCount > 0 && this.user.attrs.perm_rename)
+        : this.user.attrs.perm_rename)
     },
     showCopyButton () {
       return this.isFiles && (this.isListing
-        ? (this.selectedCount > 0 && this.user.perm.create)
-        : this.user.perm.create)
+        ? (this.selectedCount > 0 && this.user.attrs.perm_create)
+        : this.user.attrs.perm_create)
     },
     showMore () {
       return this.isFiles && this.$store.state.show === 'more'
