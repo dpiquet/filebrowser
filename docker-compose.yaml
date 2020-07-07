@@ -1,0 +1,8 @@
+version: '3.7'
+
+services:
+  engine:
+    image: filebrowser/builder
+    volumes:
+      - ./:/src/:rw
+    command: tail -F /inexistant

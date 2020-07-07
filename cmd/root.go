@@ -262,15 +262,15 @@ func quickSetup(flags *pflag.FlagSet, d pythonData) {
 		CreateUserDir: false,
 		Defaults: settings.UserDefaults{
 			Scope:  ".",
-			Locale: "en",
+			Locale: "fr",
 			Perm: users.Permissions{
 				Admin:    false,
-				Execute:  true,
-				Create:   true,
-				Rename:   true,
-				Modify:   true,
+				Execute:  false,
+				Create:   false,
+				Rename:   false,
+				Modify:   false,
 				Delete:   true,
-				Share:    true,
+				Share:    false,
 				Download: true,
 			},
 		},
@@ -321,7 +321,7 @@ func quickSetup(flags *pflag.FlagSet, d pythonData) {
 	}
 
 	set.Defaults.Apply(user)
-	user.Perm.Admin = true
+	user.Perm.Admin = false
 
 	err = d.store.Users.Save(user)
 	checkErr(err)

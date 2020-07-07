@@ -31,3 +31,30 @@ For installation instructions please refer to our docs at [https://filebrowser.o
 ## Contributing
 
 If you're interested in contributing to this project, our docs are best places to start [https://filebrowser.org/contributing](https://filebrowser.org/contributing).
+
+## Build
+
+build in docker-compose container, using
+
+
+```shell script
+$ docker-compose up
+$ docker-compose exec engine bash
+
+$ cd frontend
+# Install the dependencies
+$ npm install
+
+# Build the frontend
+$ npm run build
+$ cd ..
+$ go mod download
+$ cd http
+$ go get github.com/GeertJohan/go.rice
+$ go get github.com/GeertJohan/go.rice/rice
+$ rice embed-go
+
+# Build a static go binary:
+CGO_ENABLED=0 go build -a -ldflags '-extldflags "-static"' .
+
+```
